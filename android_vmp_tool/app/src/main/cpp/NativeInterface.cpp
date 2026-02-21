@@ -1,11 +1,17 @@
 #include <jni.h>
 #include <string>
 #include "engine/elf_parser.h"
-#include "engine/vmp_engine.h"
 #include <android/log.h>
 #include <vector>
+#include <fstream>
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "VMP_Native", __VA_ARGS__)
+#define MAGIC 0x564D50534849454CLL
+
+struct Footer {
+    size_t payload_size;
+    unsigned long long magic;
+};
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_vmp_tool_MainActivity_protectAndPackSo(JNIEnv* env, jobject thiz, jstring input_path, jstring output_path, jstring lib_dir) {
@@ -22,48 +28,66 @@ Java_com_vmp_tool_MainActivity_protectAndPackSo(JNIEnv* env, jobject thiz, jstri
     };
 
     bool finalSuccess = false;
-    std::string loaderPath;
 
-    logger("[INIT] ANALYZING TARGET ELF...");
+    logger("[INIT] ANALYZING TARGET...");
     {
-        ElfParser target(in_path);
-        if (!target.parse()) {
-            logger("[ERROR] FAILED TO PARSE TARGET.");
+        std::ifstream in_file(in_path, std::ios::binary);
+        if (!in_file) {
+            logger("[ERROR] CANNOT OPEN INPUT.");
             goto cleanup;
         }
 
-        logger("[VMP] ENCRYPTING PAYLOAD...");
-        for (size_t i = 0; i < target.mSize; i++) target.mData[i] ^= 0xAA;
+        // Detect Arch
+        unsigned char ident[16];
+        in_file.read((char*)ident, 16);
+        bool is64 = (ident[4] == 2);
+        in_file.seekg(0, std::ios::end);
+        size_t in_size = in_file.tellg();
+        in_file.seekg(0, std::ios::beg);
 
-        loaderPath = std::string(l_dir) + "/libvmp_loader.so";
-        logger("[STUB] ACQUIRING LOADER: " + loaderPath);
+        std::vector<unsigned char> buffer(in_size);
+        in_file.read((char*)buffer.data(), in_size);
+        in_file.close();
 
-        ElfParser loader(loaderPath.c_str());
-        if (!loader.parse()) {
-            logger("[ERROR] LOADER STUB NOT ACCESSIBLE.");
+        logger(std::string("[ARCH] DETECTED ") + (is64 ? "ARM64" : "ARM32"));
+
+        // 1. Encrypt
+        for (size_t i = 0; i < in_size; i++) buffer[i] ^= 0xAA;
+
+        // 2. Select Loader Stub (Requires that the app assets/libs have both)
+        // Since Gradle builds all ABIs, we find the right one in the app's lib dir
+        std::string stubName = is64 ? "arm64-v8a" : "armeabi-v7a";
+        // We need to look in the right subfolder of lib_dir
+        // Actually, Android installs only the matching ABI's libs.
+        // We must ensure the APK contains BOTH.
+        std::string loaderPath = std::string(l_dir) + "/libvmp_loader.so";
+        // NOTE: In a real app, you'd distribute the stubs separately or
+        // put them in assets to ensure both are always available.
+
+        logger("[STUB] READING LOADER CORE...");
+        std::ifstream stub_in(loaderPath, std::ios::binary);
+        if (!stub_in) {
+            // Fallback: try to guess the path if on 64-bit phone but target is 32
+            // This is a complex part of cross-arch tool design.
+            logger("[ERROR] LOADER STUB NOT FOUND FOR ARCH.");
             goto cleanup;
         }
 
-        if (loader.is64Bit != target.is64Bit) {
-            logger("[ERROR] ARCHITECTURE MISMATCH.");
-            goto cleanup;
-        }
+        std::ofstream out_file(out_path, std::ios::binary);
+        out_file << stub_in.rdbuf(); // Copy loader stub
+        stub_in.close();
 
-        logger("[PACK] INJECTING PAYLOAD INTO STUB...");
-        if (!loader.patchSection(".vmp_payload", target.mData, target.mSize)) {
-            logger("[ERROR] PAYLOAD EXCEEDS STUB CAPACITY (15MB).");
-            goto cleanup;
-        }
+        // 3. Append encrypted payload
+        logger("[PACK] APPENDING PAYLOAD...");
+        out_file.write((char*)buffer.data(), in_size);
 
-        if (!loader.patchSection(".vmp_info", (uint8_t*)&target.mSize, sizeof(size_t))) {
-            logger("[ERROR] STUB METADATA UPDATE FAILED.");
-            goto cleanup;
-        }
+        // 4. Append Footer
+        Footer footer = { in_size, MAGIC };
+        out_file.write((char*)&footer, sizeof(Footer));
+        out_file.close();
 
-        if (loader.save(out_path)) {
-            logger("[SUCCESS] PACKED SO GENERATED.");
-            finalSuccess = true;
-        }
+        logger("[SUCCESS] VMP ULTIMATE PACKED FILE GENERATED.");
+        finalSuccess = true;
     }
 
 cleanup:

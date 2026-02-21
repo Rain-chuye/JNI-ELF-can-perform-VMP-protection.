@@ -2,44 +2,50 @@
 #include <android/log.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "linker.h"
 
 #define LOG_TAG "VMP_Loader"
+#define MAGIC 0x564D50534849454CLL
 
-// Pre-allocated space for payload (15MB)
-#define MAX_PAYLOAD 15 * 1024 * 1024
-__attribute__((section(".vmp_payload"), used)) unsigned char vmp_payload[MAX_PAYLOAD] = {0xDE, 0xAD, 0xBE, 0xEF};
-__attribute__((section(".vmp_info"), used)) size_t vmp_payload_size = 0;
+struct Footer {
+    size_t payload_size;
+    unsigned long long magic;
+};
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Secure Loader Active.");
+    Dl_info info;
+    if (dladdr((void*)JNI_OnLoad, &info) == 0) return JNI_ERR;
 
-    if (vmp_payload_size == 0 || vmp_payload_size > MAX_PAYLOAD) {
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Invalid payload size: %zu", vmp_payload_size);
+    int fd = open(info.dli_fname, O_RDONLY);
+    if (fd < 0) return JNI_ERR;
+
+    off_t file_size = lseek(fd, 0, SEEK_END);
+    lseek(fd, file_size - sizeof(Footer), SEEK_SET);
+    Footer footer;
+    read(fd, &footer, sizeof(Footer));
+
+    if (footer.magic != MAGIC) {
+        close(fd);
         return JNI_VERSION_1_6;
     }
 
-    unsigned char* decrypted = (unsigned char*)malloc(vmp_payload_size);
-    for (size_t i = 0; i < vmp_payload_size; i++) {
-        decrypted[i] = vmp_payload[i] ^ 0xAA;
-    }
+    lseek(fd, file_size - sizeof(Footer) - footer.payload_size, SEEK_SET);
+    unsigned char* encrypted = (unsigned char*)malloc(footer.payload_size);
+    read(fd, encrypted, footer.payload_size);
+    close(fd);
 
-    void* handle = vmp_load_library_from_mem(decrypted, vmp_payload_size);
+    for (size_t i = 0; i < footer.payload_size; i++) encrypted[i] ^= 0xAA;
+
+    void* handle = vmp_load_library_from_mem(encrypted, footer.payload_size);
     if (!handle) {
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Critical: Linker failed to map encrypted payload.");
-        free(decrypted);
+        free(encrypted);
         return JNI_ERR;
     }
 
-    // Hand over to the original JNI_OnLoad
     typedef jint (*jni_onload_t)(JavaVM*, void*);
     jni_onload_t real_onload = (jni_onload_t)vmp_find_symbol(handle, "JNI_OnLoad");
-
-    if (real_onload) {
-        __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Handing over to original JNI_OnLoad.");
-        return real_onload(vm, reserved);
-    }
-
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Payload loaded. No JNI_OnLoad found.");
-    return JNI_VERSION_1_6;
+    return real_onload ? real_onload(vm, reserved) : JNI_VERSION_1_6;
 }
