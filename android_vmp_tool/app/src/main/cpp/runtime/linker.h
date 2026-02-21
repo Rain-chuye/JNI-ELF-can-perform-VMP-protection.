@@ -8,11 +8,11 @@
 extern "C" {
 #endif
 
-void* vmp_load_library(const char* path);
-void* vmp_get_symbol(void* handle, const char* symbol);
+void* vmp_load_library_from_mem(void* buffer, size_t size);
+void* vmp_get_symbol_from_lib(void* handle, const char* name);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // LINKER_H
+#endif

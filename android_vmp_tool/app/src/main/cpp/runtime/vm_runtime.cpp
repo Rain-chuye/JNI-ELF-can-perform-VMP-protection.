@@ -1,25 +1,14 @@
 #include "vm_runtime.h"
-#include <stdio.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <android/log.h>
 
-#define LOG_TAG "VMP_VM"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+extern "C" void decrypt_section(void* addr, size_t size, uint8_t key) {
+    uintptr_t start = (uintptr_t)addr & ~(getpagesize() - 1);
+    uintptr_t end = ((uintptr_t)addr + size + getpagesize() - 1) & ~(getpagesize() - 1);
 
-void vmp_execute(const uint8_t* bytecode, void* context) {
-    LOGI("VM executing bytecode...");
-    const uint8_t* pc = bytecode;
-    while (*pc != 0xFF) { // 0xFF as EXIT opcode
-        uint8_t opcode = *pc++;
-        switch (opcode) {
-            case 0x01: // Dummy ADD
-                LOGI("VM: Executing ADD");
-                break;
-            case 0x02: // Dummy JMP
-                LOGI("VM: Executing JMP");
-                break;
-            default:
-                LOGI("VM: Unknown opcode %02x", opcode);
-                return;
-        }
-    }
+    mprotect((void*)start, end - start, PROT_READ | PROT_WRITE | PROT_EXEC);
+    uint8_t* p = (uint8_t*)addr;
+    for (size_t i = 0; i < size; i++) p[i] ^= key;
+    mprotect((void*)start, end - start, PROT_READ | PROT_EXEC);
 }

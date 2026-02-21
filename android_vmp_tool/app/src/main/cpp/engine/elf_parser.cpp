@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 ElfParser::ElfParser(const char* path) : mData(NULL), mSize(0), is64Bit(false) {
     FILE* fp = fopen(path, "rb");
@@ -9,7 +11,8 @@ ElfParser::ElfParser(const char* path) : mData(NULL), mSize(0), is64Bit(false) {
         fseek(fp, 0, SEEK_END);
         mSize = ftell(fp);
         fseek(fp, 0, SEEK_SET);
-        mData = (uint8_t*)malloc(mSize);
+        mData = (uint8_t*)malloc(mSize + 4096); // Extra space for injection
+        memset(mData, 0, mSize + 4096);
         fread(mData, 1, mSize, fp);
         fclose(fp);
     }
@@ -36,57 +39,30 @@ bool ElfParser::parse() {
 uint8_t* ElfParser::getSection(const char* name, size_t* outSize) {
     if (is64Bit) {
         Elf64_Ehdr* ehdr = header.ehdr64;
-        Elf64_Shdr* shstrtab_hdr = (Elf64_Shdr*)(mData + ehdr->e_shoff + ehdr->e_shstrndx * ehdr->e_shentsize);
+        Elf64_Shdr* shdr_table = (Elf64_Shdr*)(mData + ehdr->e_shoff);
+        Elf64_Shdr* shstrtab_hdr = &shdr_table[ehdr->e_shstrndx];
         const char* shstrtab = (const char*)(mData + shstrtab_hdr->sh_offset);
 
         for (int i = 0; i < ehdr->e_shnum; i++) {
-            Elf64_Shdr* shdr = (Elf64_Shdr*)(mData + ehdr->e_shoff + i * ehdr->e_shentsize);
-            if (strcmp(shstrtab + shdr->sh_name, name) == 0) {
-                if (outSize) *outSize = shdr->sh_size;
-                return mData + shdr->sh_offset;
+            if (strcmp(shstrtab + shdr_table[i].sh_name, name) == 0) {
+                if (outSize) *outSize = shdr_table[i].sh_size;
+                return mData + shdr_table[i].sh_offset;
             }
         }
     } else {
         Elf32_Ehdr* ehdr = header.ehdr32;
-        Elf32_Shdr* shstrtab_hdr = (Elf32_Shdr*)(mData + ehdr->e_shoff + ehdr->e_shstrndx * ehdr->e_shentsize);
+        Elf32_Shdr* shdr_table = (Elf32_Shdr*)(mData + ehdr->e_shoff);
+        Elf32_Shdr* shstrtab_hdr = &shdr_table[ehdr->e_shstrndx];
         const char* shstrtab = (const char*)(mData + shstrtab_hdr->sh_offset);
 
         for (int i = 0; i < ehdr->e_shnum; i++) {
-            Elf32_Shdr* shdr = (Elf32_Shdr*)(mData + ehdr->e_shoff + i * ehdr->e_shentsize);
-            if (strcmp(shstrtab + shdr->sh_name, name) == 0) {
-                if (outSize) *outSize = shdr->sh_size;
-                return mData + shdr->sh_offset;
+            if (strcmp(shstrtab + shdr_table[i].sh_name, name) == 0) {
+                if (outSize) *outSize = shdr_table[i].sh_size;
+                return mData + shdr_table[i].sh_offset;
             }
         }
     }
     return NULL;
-}
-
-uintptr_t ElfParser::getSymbolOffset(const char* name) {
-    size_t dynsymSize, dynstrSize;
-    uint8_t* dynsym = getSection(".dynsym", &dynsymSize);
-    uint8_t* dynstr = getSection(".dynstr", &dynstrSize);
-
-    if (!dynsym || !dynstr) return 0;
-
-    if (is64Bit) {
-        Elf64_Sym* syms = (Elf64_Sym*)dynsym;
-        int count = dynsymSize / sizeof(Elf64_Sym);
-        for (int i = 0; i < count; i++) {
-            if (strcmp((const char*)dynstr + syms[i].st_name, name) == 0) {
-                return syms[i].st_value;
-            }
-        }
-    } else {
-        Elf32_Sym* syms = (Elf32_Sym*)dynsym;
-        int count = dynsymSize / sizeof(Elf32_Sym);
-        for (int i = 0; i < count; i++) {
-            if (strcmp((const char*)dynstr + syms[i].st_name, name) == 0) {
-                return syms[i].st_value;
-            }
-        }
-    }
-    return 0;
 }
 
 bool ElfParser::save(const char* path) {
