@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMP Shield Local</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState } = React;
+
+        function App() {
+            const [status, setStatus] = useState('Ready');
+            const [log, setLog] = useState('');
+
+            const handleLocalProtect = () => {
+                if (window.Android) {
+                    setStatus('Processing...');
+                    setLog('Starting local protection engine...\n');
+                    // In a real app, we'd use a file picker.
+                    // For this MVP bridge demo, we call the native function.
+                    window.Android.startLocalProtection();
+                } else {
+                    alert("Android Bridge not found. Are you running this in the VMP Shield App?");
+                }
+            };
+
+            // Global callback for Android to update UI
+            window.updateStatus = (msg, logMsg) => {
+                setStatus(msg);
+                if (logMsg) setLog(prev => prev + logMsg + '\n');
+            };
+
+            return (
+                <div class="p-6">
+                    <header class="mb-8">
+                        <h1 class="text-2xl font-bold text-blue-400">VMP Shield Local</h1>
+                        <p class="text-slate-400 text-sm">Standalone Mobile Protection Engine</p>
+                    </header>
+
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+                        <div class="mb-6">
+                            <h2 class="text-lg font-semibold mb-2">Local Mode (Offline)</h2>
+                            <p class="text-sm text-slate-400">Everything runs on your device. No data leaves the phone.</p>
+                        </div>
+
+                        <button
+                            onClick={handleLocalProtect}
+                            class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold transition-all active:scale-95 shadow-lg"
+                        >
+                            Select File & Protect
+                        </button>
+
+                        <div class="mt-8">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs uppercase tracking-widest text-slate-500">Status</span>
+                                <span class="text-xs font-bold text-green-400">{status}</span>
+                            </div>
+                            <pre class="bg-slate-950 p-4 rounded border border-slate-800 text-[10px] h-32 overflow-y-auto text-blue-300 font-mono">
+                                {log || 'Waiting for input...'}
+                            </pre>
+                        </div>
+                    </div>
+
+                    <footer class="mt-8 text-center text-slate-600 text-[10px]">
+                        VMP Shield v1.0 (Local Build)
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
