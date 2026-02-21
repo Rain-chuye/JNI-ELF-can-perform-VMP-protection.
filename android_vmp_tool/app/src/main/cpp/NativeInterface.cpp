@@ -9,7 +9,8 @@ Java_com_vmp_tool_MainActivity_protectSo(JNIEnv* env, jobject thiz, jstring inpu
     const char* in_path = env->GetStringUTFChars(input_path, NULL);
     const char* out_path = env->GetStringUTFChars(output_path, NULL);
 
-    __android_log_print(ANDROID_LOG_INFO, "VMP_Tool", "Stability Protection for: %s", in_path);
+    jclass clazz = env->GetObjectClass(thiz);
+    jmethodID logMethod = env->GetMethodID(clazz, "onLog", "(Ljava/lang/String;)V");
 
     ElfParser parser(in_path);
     if (!parser.parse()) {
@@ -19,6 +20,12 @@ Java_com_vmp_tool_MainActivity_protectSo(JNIEnv* env, jobject thiz, jstring inpu
     }
 
     VmpEngine engine(&parser);
+    engine.setLogCallback([&](const std::string& msg) {
+        jstring jmsg = env->NewStringUTF(msg.c_str());
+        env->CallVoidMethod(thiz, logMethod, jmsg);
+        env->DeleteLocalRef(jmsg);
+    });
+
     engine.protect();
 
     bool success = parser.save(out_path);
