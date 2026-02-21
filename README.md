@@ -140,3 +140,19 @@ cd frontend && python3 -m http.server 8080
   - **A:** 请检查 Supervisor 中的 `vmp_worker` 是否正常运行。如果已启动但无效，查看 Supervisor 日志确认是否有权限或路径错误。
 
 ---
+
+---
+
+## Ubuntu 18.04 一键部署 (推荐)
+
+如果您使用的是 Ubuntu 18.04 干净系统，可以直接在终端执行：
+
+```bash
+# 下载代码后进入项目目录
+chmod +x deploy.sh
+./deploy.sh
+```
+
+该脚本会自动处理大部分系统依赖和环境初始化工作。
+
+---
