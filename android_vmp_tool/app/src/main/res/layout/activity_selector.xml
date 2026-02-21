@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_dark"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Symbol Analyzer"
+        android:textColor="@color/text_main"
+        android:textSize="20sp"
+        android:textStyle="bold"/>
+
+    <Button
+        android:id="@+id/btn_select_file"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Target"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="@color/brand_primary"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Functions for VMP"
+        android:textColor="@color/brand_primary"
+        android:textSize="12sp"
+        android:layout_marginTop="16dp"/>
+
+    <ListView
+        android:id="@+id/lv_functions"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:background="#000000"
+        android:padding="4dp"/>
+
+    <Button
+        android:id="@+id/btn_execute"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="16dp"
+        android:text="GENERATE SHIELDED BINARY"
+        android:backgroundTint="@color/accent_gold"
+        android:textColor="@color/bg_dark"
+        android:textStyle="bold"/>
+
+</LinearLayout>

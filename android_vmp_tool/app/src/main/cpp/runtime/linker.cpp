@@ -51,7 +51,9 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
         }
     }
 
-    void* load_addr = mmap(NULL, max_vaddr - min_vaddr, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // Use PAGE_SIZE alignment
+    size_t load_size = max_vaddr - min_vaddr;
+    void* load_addr = mmap(NULL, load_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (load_addr == MAP_FAILED) return NULL;
     uintptr_t base = (uintptr_t)load_addr - min_vaddr;
 
@@ -59,6 +61,9 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
     for (int i = 0; i < ehdr->e_phnum; i++) {
         if (phdr_table[i].p_type == PT_LOAD) {
             memcpy((void*)(base + phdr_table[i].p_vaddr), (uint8_t*)buffer + phdr_table[i].p_offset, phdr_table[i].p_filesz);
+            if (phdr_table[i].p_memsz > phdr_table[i].p_filesz) {
+                memset((uint8_t*)base + phdr_table[i].p_vaddr + phdr_table[i].p_filesz, 0, phdr_table[i].p_memsz - phdr_table[i].p_filesz);
+            }
         } else if (phdr_table[i].p_type == PT_DYNAMIC) {
             dynamic = (Elf_Dyn*)(base + phdr_table[i].p_vaddr);
         }
@@ -71,6 +76,7 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
     bool is_rela = false;
     void* init_array = NULL;
     size_t init_array_sz = 0;
+    init_func_t init_func = NULL;
 
     for (Elf_Dyn* d = dynamic; d && d->d_tag != DT_NULL; d++) {
         switch (d->d_tag) {
@@ -80,11 +86,13 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
             case DT_RELASZ: rel_size = d->d_un.d_val; break;
             case DT_REL: rel_data = (void*)(base + d->d_un.d_ptr); is_rela = false; break;
             case DT_RELSZ: rel_size = d->d_un.d_val; break;
+            case DT_INIT: init_func = (init_func_t)(base + d->d_un.d_ptr); break;
             case DT_INIT_ARRAY: init_array = (void*)(base + d->d_un.d_ptr); break;
             case DT_INIT_ARRAYSZ: init_array_sz = d->d_un.d_val; break;
         }
     }
 
+    // Apply relocations
     if (rel_data) {
 #ifdef __arm__
         Elf32_Rel* rel = (Elf32_Rel*)rel_data;
@@ -111,6 +119,7 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
 #endif
     }
 
+    // Set segment permissions
     for (int i = 0; i < ehdr->e_phnum; i++) {
         if (phdr_table[i].p_type == PT_LOAD) {
             uintptr_t start = (base + phdr_table[i].p_vaddr) & ~4095UL;
@@ -123,6 +132,8 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
         }
     }
 
+    // Call init functions
+    if (init_func) init_func();
     if (init_array && init_array_sz > 0) {
         init_func_t* funcs = (init_func_t*)init_array;
         for (size_t i = 0; i < init_array_sz / sizeof(void*); i++) {
