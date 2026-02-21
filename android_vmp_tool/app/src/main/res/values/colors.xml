@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#6200EE</color>
-    <color name="colorPrimaryDark">#3700B3</color>
-    <color name="colorAccent">#03DAC5</color>
-    <color name="background">#F5F5F7</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="textPrimary">#1C1C1E</color>
-    <color name="textSecondary">#8E8E93</color>
+    <color name="brand_primary">#10B981</color> <!-- Emerald 500 -->
+    <color name="brand_dark">#064E3B</color>    <!-- Emerald 900 -->
+    <color name="bg_dark">#111827</color>       <!-- Gray 900 -->
+    <color name="surface_dark">#1F2937</color>   <!-- Gray 800 -->
+    <color name="text_main">#F9FAFB</color>     <!-- Gray 50 -->
+    <color name="text_muted">#9CA3AF</color>    <!-- Gray 400 -->
+    <color name="accent_gold">#FBBF24</color>   <!-- Amber 400 -->
 </resources>

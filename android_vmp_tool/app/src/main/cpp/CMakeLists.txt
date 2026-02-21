@@ -15,13 +15,14 @@ add_library(vmp_engine SHARED
             engine/jni_protector.cpp
             NativeInterface.cpp)
 
-# Runtime Stub (To be embedded in protected SOs)
+# Runtime Stub (To be embedded or used for security)
 add_library(vmp_runtime STATIC
             runtime/linker.cpp
             runtime/vm_runtime.cpp
-            runtime/decryptor.cpp)
+            runtime/decryptor.cpp
+            runtime/security.cpp)
 
-# Test library (To test the tool)
+# Test library
 add_library(test_lib SHARED
             test/test_lib.cpp)
 

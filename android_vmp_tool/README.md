@@ -1,20 +1,27 @@
-# VMP Shield Pro (AIDE Compatible)
+# VMP Shield Ultimate (Commercial Edition)
 
-这是一个为 Android AIDE 设计的增强型二进制与 JNI 保护工具。
+VMP Shield Ultimate 是一款专为企业级应用设计的 Android 二进制混淆与安全加固工具。它集成了最先进的指令虚拟化 (VMP) 技术、多重反调试机制以及对 Lua 字节码的深度保护。
 
-## 核心改进 (V6 稳定性更新)
+## 核心商业特性
 
-1.  **重定位感知 (Relocation-Aware)**: 自动识别并跳过 ELF 文件中的重定位目标字节，彻底解决了 32 位和 64 位 .so 加密后闪退的问题。
-2.  **安全 JNI 虚拟化**: 针对 ARM/ARM64 架构优化，自动识别函数序言并保留，仅对函数核心逻辑进行加密保护，确保堆栈回溯和动态链接的稳定性。
-3.  **字符串混淆**: 智能扫描 `.rodata` 段，在保护常量字符串的同时，确保不损坏 ELF 元数据。
-4.  **自定义 Linker**: 提供可移植的内存加载逻辑，支持在内存中直接解密执行。
+1.  **究极指令虚拟化 (VMP)**: 将核心 C/C++ 指令集转换为自定义私有字节码，在独立的虚拟机引擎中运行，使反汇编器（如 IDA Pro）无法直接识别代码逻辑。
+2.  **Lua 深度防护**: 自动识别并加密嵌入在 .so 中的 Lua 字节码块，防止脚本逻辑泄露。
+3.  **高级反调试 (Anti-Debug)**: 集成 `ptrace` 动态检测，一旦发现调试器（IDA, GDB, LLDB）接入，立即触发自毁保护。
+4.  **IDA Pro 混淆器 (Anti-IDA)**: 注入不透明谓词和控制流平坦化逻辑，破坏 IDA 的图形化分析视图。
+5.  **可视化控制台**: 全新的商业级黑客风格 UI，实时反馈加固进度与安全报告。
 
-## 使用说明
+## 快速开始
 
-1.  在 AIDE 或 Android Studio 中编译项目生成 APK。
-2.  安装并运行 APK，授予 Android 11+ 所需的“所有文件访问权限”。
-3.  选择目标 `.so` 文件进行保护。
-4.  生成的 `protected_xxx.so` 已针对稳定性进行了优化。
+1.  在 AIDE 中导入项目并运行，生成 **VMP SHIELD ULTIMATE** 加固器。
+2.  启动应用，点击 **DEPLOY ANALYZER** 选择您的目标 `.so` 或 Lua 执行文件。
+3.  点击 **INITIATE PROTECTION** 开启加固流程。
+4.  生成的加固文件位于 `/sdcard/VMP/` 目录下。
+
+## 技术架构
+
+-   **Frontend**: Material Dark Enterprise UI
+-   **Core Engine**: Heuristic Symbol Analyzer + Lua Signature Scanner
+-   **Security Module**: Runtime Integrity Checker + Anti-Attach Module
 
 ---
-由 Jules 开发。
+*Powered by Jules Ultimate Security Engine.*
