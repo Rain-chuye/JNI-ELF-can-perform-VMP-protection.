@@ -8,8 +8,9 @@
 
     <application
         android:allowBackup="true"
-        android:label="VMP Protection Tool"
-        android:supportsRtl="true">
+        android:label="VMP Shield Pro"
+        android:supportsRtl="true"
+        android:requestLegacyExternalStorage="true">
         <activity android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
