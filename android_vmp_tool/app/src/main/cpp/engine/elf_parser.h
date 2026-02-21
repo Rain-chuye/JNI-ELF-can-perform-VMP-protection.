@@ -15,6 +15,7 @@ public:
     bool save(const char* path);
     uint8_t* getSection(const char* name, size_t* outSize);
     uintptr_t getSymbolOffset(const char* name);
+    uintptr_t vaddrToOffset(uintptr_t vaddr);
 
     union {
         Elf32_Ehdr* ehdr32;
