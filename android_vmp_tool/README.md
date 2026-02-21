@@ -1,21 +1,22 @@
-# VMP Shield Ultimate (No-Root Commercial Release)
+# VMP Shield Pro - Enterprise Packer Edition
 
-VMP Shield Ultimate 现已升级为 **无 Root 运行模式**。加固后的 .so 文件可以通过自解密技术在任何标准 Android 设备上运行。
+VMP Shield Pro 是一款商业级的 Android .so 加密与加壳工具。它通过将您的原始动态库加密并嵌入到一个安全的“引导外壳”中，实现在无 Root 环境下的高性能加固。
 
-## 核心商业特性 (V10)
+## 核心商业特性 (V11 - 最终稳定版)
 
-1.  **无 Root 兼容性**: 采用内存加载器（Memory Linker）技术。加固后的 .so 在加载时会自动在内存中解密并重定位，无需修改系统权限。
-2.  **JNI 自解密存根**: 注入了高性能的 C++ 存根，能够透明地处理加密负载。
-3.  **究极指令虚拟化 (VMP)**: 针对 ARM32/64 深度优化的指令混淆。
-4.  **Lua 字节码保护**: 支持对 embedded Lua 脚本的静态加密与动态还原。
-5.  **商业级控制台**: 现代化的深色系专业 UI，支持实时加固日志查看。
+1.  **全平台支持**: 完美支持 ARM (32位) 和 ARM64 (64位) 架构。
+2.  **加壳技术 (Packing)**: 不仅加密代码段，而是将整个 `.so` 作为加密负载封装，极大地提高了破解难度。
+3.  **无 Root 内存加载**: 使用私有的 `Memory Linker` 技术。加固后的 `.so` 在被 `System.loadLibrary` 加载时，会自动在内存中解密、映射并处理重定位。
+4.  **JNI 透明切换**: 自动识别并跳转到原始 `JNI_OnLoad`，对业务代码零侵入。
+5.  **可视化控制台**: 实时显示加固进度、架构检测以及内存映射状态。
 
-## 使用说明
+## 使用指南
 
-1.  在 AIDE/Android Studio 中构建并安装 APK。
-2.  选择需要加固的 `.so` 或 Lua 二进制文件。
+1.  在 AIDE 或 Android Studio 中构建并运行此项目。
+2.  点击 **DEPLOY ANALYZER** 选择您想要保护的 `.so` 文件。
 3.  点击 **INITIATE PROTECTION**。
-4.  输出文件保存在 `/sdcard/VMP/`。这些文件可以直接集成到您的 Android 项目中，使用标准的 `System.loadLibrary` 即可正常运行（内部已集成自解密逻辑）。
+4.  系统将生成一个 `packed_xxx.so` 文件在 `/sdcard/VMP/` 目录下。
+5.  **集成**: 将此生成的文件放入您的 Android 工程，像往常一样加载即可。
 
 ---
-*Developed by Jules - Ultimate Security Solutions.*
+由 Jules 倾力打造 - 顶级二进制安全方案。

@@ -2,6 +2,7 @@ package com.vmp.tool;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -66,7 +67,6 @@ public class MainActivity extends Activity {
         });
     }
 
-    // Called from JNI
     public void onLog(final String message) {
         handler.post(() -> {
             tvLog.append("> " + message + "\n");
@@ -105,7 +105,13 @@ public class MainActivity extends Activity {
             while ((read = is.read(buffer)) != -1) os.write(buffer, 0, read);
             is.close(); os.close();
 
-            boolean success = protectSo(tempIn.getAbsolutePath(), tempOut.getAbsolutePath());
+            // Find the path to our loader stub SO
+            ApplicationInfo ai = getPackageManager().getApplicationInfo(getPackageName(), 0);
+            String nativeLibDir = ai.nativeLibraryDir;
+            // We need to decide whether to use the 32 or 64 bit loader based on the input SO
+            // For now, we'll pass the lib dir and let JNI decide.
+
+            boolean success = protectAndPackSo(tempIn.getAbsolutePath(), tempOut.getAbsolutePath(), nativeLibDir);
 
             handler.post(() -> {
                 progressBar.setVisibility(View.GONE);
@@ -114,14 +120,14 @@ public class MainActivity extends Activity {
                     try {
                         File finalDir = new File(Environment.getExternalStorageDirectory(), "VMP");
                         if (!finalDir.exists()) finalDir.mkdirs();
-                        File finalFile = new File(finalDir, "protected_" + System.currentTimeMillis() + ".so");
+                        File finalFile = new File(finalDir, "packed_" + System.currentTimeMillis() + ".so");
                         copyFile(tempOut, finalFile);
-                        Toast.makeText(this, "Saved to: " + finalFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Packed SO ready at: " + finalFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
                     } catch (Exception e) {
                         onLog("Error saving: " + e.getMessage());
                     }
                 } else {
-                    Toast.makeText(this, "Protection Failed", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Protection/Packing Failed", Toast.LENGTH_SHORT).show();
                 }
             });
         } catch (Exception e) {
@@ -147,10 +153,10 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1 && resultCode == RESULT_OK && data != null) {
             selectedUri = data.getData();
-            tvStatus.setText(selectedUri.getLastPathSegment());
+            tvStatus.setText("Target Acquired");
             btnProtect.setEnabled(true);
         }
     }
 
-    public native boolean protectSo(String inputPath, String outputPath);
+    public native boolean protectAndPackSo(String inputPath, String outputPath, String libDir);
 }

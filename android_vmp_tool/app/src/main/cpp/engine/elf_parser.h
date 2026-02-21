@@ -16,6 +16,7 @@ public:
     uint8_t* getSection(const char* name, size_t* outSize);
     uintptr_t getSymbolOffset(const char* name);
     uintptr_t vaddrToOffset(uintptr_t vaddr);
+    bool patchSection(const char* name, const uint8_t* data, size_t size);
 
     union {
         Elf32_Ehdr* ehdr32;
@@ -27,4 +28,4 @@ public:
     size_t mSize;
 };
 
-#endif // ELF_PARSER_H
+#endif
