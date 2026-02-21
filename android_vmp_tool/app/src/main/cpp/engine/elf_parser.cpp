@@ -9,7 +9,7 @@ ElfParser::ElfParser(const char* path) : mData(NULL), mSize(0), is64Bit(false) {
         fseek(fp, 0, SEEK_END);
         mSize = ftell(fp);
         fseek(fp, 0, SEEK_SET);
-        mData = (uint8_t*)malloc(mSize + 1024 * 1024); // Extra buffer
+        mData = (uint8_t*)malloc(mSize + 1024 * 1024);
         fread(mData, 1, mSize, fp);
         fclose(fp);
     }
@@ -47,18 +47,20 @@ uintptr_t ElfParser::vaddrToOffset(uintptr_t vaddr) {
 
 uint8_t* ElfParser::getSection(const char* name, size_t* outSize) {
     if (is64Bit) {
-        Elf64_Shdr* shdr = (Elf64_Shdr*)(mData + header.ehdr64->e_shoff);
-        const char* strtab = (const char*)(mData + shdr[header.ehdr64->e_shstrndx].sh_offset);
-        for (int i = 0; i < header.ehdr64->e_shnum; i++) {
+        Elf64_Ehdr* ehdr = header.ehdr64;
+        Elf64_Shdr* shdr = (Elf64_Shdr*)(mData + ehdr->e_shoff);
+        const char* strtab = (const char*)(mData + shdr[ehdr->e_shstrndx].sh_offset);
+        for (int i = 0; i < ehdr->e_shnum; i++) {
             if (strcmp(strtab + shdr[i].sh_name, name) == 0) {
                 if (outSize) *outSize = shdr[i].sh_size;
                 return mData + shdr[i].sh_offset;
             }
         }
     } else {
-        Elf32_Shdr* shdr = (Elf32_Shdr*)(mData + header.ehdr32->e_shoff);
-        const char* strtab = (const char*)(mData + shdr[header.ehdr32->e_shstrndx].sh_offset);
-        for (int i = 0; i < header.ehdr32->e_shnum; i++) {
+        Elf32_Ehdr* ehdr = header.ehdr32;
+        Elf32_Shdr* shdr = (Elf32_Shdr*)(mData + ehdr->e_shoff);
+        const char* strtab = (const char*)(mData + shdr[ehdr->e_shstrndx].sh_offset);
+        for (int i = 0; i < ehdr->e_shnum; i++) {
             if (strcmp(strtab + shdr[i].sh_name, name) == 0) {
                 if (outSize) *outSize = shdr[i].sh_size;
                 return mData + shdr[i].sh_offset;
@@ -68,14 +70,31 @@ uint8_t* ElfParser::getSection(const char* name, size_t* outSize) {
     return NULL;
 }
 
-bool ElfParser::patchSection(const char* name, const uint8_t* data, size_t size) {
-    size_t secSize = 0;
-    uint8_t* secPtr = getSection(name, &secSize);
-    if (secPtr && secSize >= size) {
-        memcpy(secPtr, data, size);
-        return true;
+std::vector<JniExport> ElfParser::getJniExports() {
+    std::vector<JniExport> exports;
+    size_t symSize = 0;
+    uint8_t* dynsym = getSection(".dynsym", &symSize);
+    uint8_t* dynstr = getSection(".dynstr", NULL);
+    if (!dynsym || !dynstr) return exports;
+
+    if (is64Bit) {
+        Elf64_Sym* syms = (Elf64_Sym*)dynsym;
+        for (int i = 0; i < symSize / sizeof(Elf64_Sym); i++) {
+            const char* name = (const char*)dynstr + syms[i].st_name;
+            if (strncmp(name, "Java_", 5) == 0) {
+                exports.push_back({name, (uintptr_t)syms[i].st_value, (size_t)syms[i].st_size});
+            }
+        }
+    } else {
+        Elf32_Sym* syms = (Elf32_Sym*)dynsym;
+        for (int i = 0; i < symSize / sizeof(Elf32_Sym); i++) {
+            const char* name = (const char*)dynstr + syms[i].st_name;
+            if (strncmp(name, "Java_", 5) == 0) {
+                exports.push_back({name, (uintptr_t)syms[i].st_value, (size_t)syms[i].st_size});
+            }
+        }
     }
-    return false;
+    return exports;
 }
 
 bool ElfParser::save(const char* path) {

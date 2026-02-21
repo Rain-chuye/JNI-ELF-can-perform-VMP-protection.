@@ -5,11 +5,11 @@
 #include <sys/mman.h>
 #include <elf.h>
 #include <dlfcn.h>
+#include <unistd.h>
 #include <android/log.h>
 
 #define LOG_TAG "VMP_Linker"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 #ifdef __arm__
 #define Elf_Ehdr Elf32_Ehdr
@@ -19,9 +19,10 @@
 #define Elf_Rel  Elf32_Rel
 #define ELF_R_SYM(i) ELF32_R_SYM(i)
 #define ELF_R_TYPE(i) ELF32_R_TYPE(i)
-#define R_RELATIVE R_ARM_RELATIVE
-#define R_GLOB_DAT R_ARM_GLOB_DAT
-#define R_JUMP_SLOT R_ARM_JUMP_SLOT
+#define REL_RELATIVE R_ARM_RELATIVE
+#define REL_ABS      R_ARM_ABS32
+#define REL_GLOB_DAT R_ARM_GLOB_DAT
+#define REL_JUMP_SLOT R_ARM_JUMP_SLOT
 #else
 #define Elf_Ehdr Elf64_Ehdr
 #define Elf_Phdr Elf64_Phdr
@@ -30,17 +31,18 @@
 #define Elf_Rela Elf64_Rela
 #define ELF_R_SYM(i) ELF64_R_SYM(i)
 #define ELF_R_TYPE(i) ELF64_R_TYPE(i)
-#define R_RELATIVE R_AARCH64_RELATIVE
-#define R_GLOB_DAT R_AARCH64_GLOB_DAT
-#define R_JUMP_SLOT R_AARCH64_JUMP_SLOT
+#define REL_RELATIVE R_AARCH64_RELATIVE
+#define REL_ABS      R_AARCH64_ABS64
+#define REL_GLOB_DAT R_AARCH64_GLOB_DAT
+#define REL_JUMP_SLOT R_AARCH64_JUMP_SLOT
 #endif
+
+typedef void (*init_func_t)();
 
 void* vmp_load_library_from_mem(void* buffer, size_t size) {
     Elf_Ehdr* ehdr = (Elf_Ehdr*)buffer;
-    if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) return NULL;
-
-    // 1. Calculate and map segments
     Elf_Phdr* phdr_table = (Elf_Phdr*)((uint8_t*)buffer + ehdr->e_phoff);
+
     uintptr_t min_vaddr = (uintptr_t)-1, max_vaddr = 0;
     for (int i = 0; i < ehdr->e_phnum; i++) {
         if (phdr_table[i].p_type == PT_LOAD) {
@@ -49,7 +51,7 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
         }
     }
 
-    void* load_addr = mmap(NULL, max_vaddr - min_vaddr, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* load_addr = mmap(NULL, max_vaddr - min_vaddr, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (load_addr == MAP_FAILED) return NULL;
     uintptr_t base = (uintptr_t)load_addr - min_vaddr;
 
@@ -62,12 +64,13 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
         }
     }
 
-    // 2. Comprehensive Relocations
     Elf_Sym* symtab = NULL;
     const char* strtab = NULL;
     void* rel_data = NULL;
     size_t rel_size = 0;
     bool is_rela = false;
+    void* init_array = NULL;
+    size_t init_array_sz = 0;
 
     for (Elf_Dyn* d = dynamic; d && d->d_tag != DT_NULL; d++) {
         switch (d->d_tag) {
@@ -77,6 +80,8 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
             case DT_RELASZ: rel_size = d->d_un.d_val; break;
             case DT_REL: rel_data = (void*)(base + d->d_un.d_ptr); is_rela = false; break;
             case DT_RELSZ: rel_size = d->d_un.d_val; break;
+            case DT_INIT_ARRAY: init_array = (void*)(base + d->d_un.d_ptr); break;
+            case DT_INIT_ARRAYSZ: init_array_sz = d->d_un.d_val; break;
         }
     }
 
@@ -86,10 +91,9 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
         for (size_t i = 0; i < rel_size / sizeof(Elf32_Rel); i++) {
             uintptr_t* ptr = (uintptr_t*)(base + rel[i].r_offset);
             int type = ELF32_R_TYPE(rel[i].r_info);
-            int sym = ELF32_R_SYM(rel[i].r_info);
-            if (type == R_RELATIVE) *ptr += base;
-            else if (type == R_GLOB_DAT || type == R_JUMP_SLOT) {
-                void* s = dlsym(RTLD_DEFAULT, strtab + symtab[sym].st_name);
+            if (type == REL_RELATIVE) *ptr += base;
+            else if (type == REL_GLOB_DAT || type == REL_JUMP_SLOT || type == REL_ABS) {
+                void* s = dlsym(RTLD_DEFAULT, strtab + symtab[ELF32_R_SYM(rel[i].r_info)].st_name);
                 if (s) *ptr = (uintptr_t)s;
             }
         }
@@ -98,26 +102,35 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
         for (size_t i = 0; i < rel_size / sizeof(Elf64_Rela); i++) {
             uintptr_t* ptr = (uintptr_t*)(base + rela[i].r_offset);
             int type = ELF64_R_TYPE(rela[i].r_info);
-            int sym = ELF64_R_SYM(rela[i].r_info);
-            if (type == R_RELATIVE) *ptr = base + rela[i].r_addend;
-            else if (type == R_GLOB_DAT || type == R_JUMP_SLOT) {
-                void* s = dlsym(RTLD_DEFAULT, strtab + symtab[sym].st_name);
-                if (s) *ptr = (uintptr_t)s;
+            if (type == REL_RELATIVE) *ptr = base + rela[i].r_addend;
+            else if (type == REL_GLOB_DAT || type == REL_JUMP_SLOT || type == REL_ABS) {
+                void* s = dlsym(RTLD_DEFAULT, strtab + symtab[ELF64_R_SYM(rela[i].r_info)].st_name);
+                if (s) *ptr = (uintptr_t)s + rela[i].r_addend;
             }
         }
 #endif
     }
 
-    LOGI("Linker: Library successfully mapped and relocated at %p", load_addr);
-    return load_addr;
-}
+    for (int i = 0; i < ehdr->e_phnum; i++) {
+        if (phdr_table[i].p_type == PT_LOAD) {
+            uintptr_t start = (base + phdr_table[i].p_vaddr) & ~4095UL;
+            uintptr_t end = (base + phdr_table[i].p_vaddr + phdr_table[i].p_memsz + 4095UL) & ~4095UL;
+            int prot = 0;
+            if (phdr_table[i].p_flags & PF_R) prot |= PROT_READ;
+            if (phdr_table[i].p_flags & PF_W) prot |= PROT_WRITE;
+            if (phdr_table[i].p_flags & PF_X) prot |= PROT_EXEC;
+            mprotect((void*)start, end - start, prot);
+        }
+    }
 
-void* vmp_get_symbol_from_lib(void* handle, const char* name) {
-    // Note: handle here is the load_addr from vmp_load_library_from_mem
-    // We need to find the symbol in its symtab.
-    // For simplicity, we just return NULL and let JNI resolution handle it,
-    // OR we could implement a full symtab search.
-    return NULL;
+    if (init_array && init_array_sz > 0) {
+        init_func_t* funcs = (init_func_t*)init_array;
+        for (size_t i = 0; i < init_array_sz / sizeof(void*); i++) {
+            if (funcs[i]) funcs[i]();
+        }
+    }
+
+    return (void*)base;
 }
 
 void* vmp_find_symbol(void* handle, const char* name) {
@@ -132,22 +145,15 @@ void* vmp_find_symbol(void* handle, const char* name) {
         }
     }
     if (!dynamic) return NULL;
-
     Elf_Sym* symtab = NULL;
     const char* strtab = NULL;
     for (Elf_Dyn* d = dynamic; d->d_tag != DT_NULL; d++) {
         if (d->d_tag == DT_SYMTAB) symtab = (Elf_Sym*)(base + d->d_un.d_ptr);
         if (d->d_tag == DT_STRTAB) strtab = (const char*)(base + d->d_un.d_ptr);
     }
-
     if (!symtab || !strtab) return NULL;
-
-    // Linear search (PoC)
-    for (int i = 0; ; i++) {
-        if (strcmp(strtab + symtab[i].st_name, name) == 0) {
-            return (void*)(base + symtab[i].st_value);
-        }
-        if (i > 5000) break; // Safety break
+    for (int i = 0; i < 10000; i++) {
+        if (strcmp(strtab + symtab[i].st_name, name) == 0) return (void*)(base + symtab[i].st_value);
     }
     return NULL;
 }
