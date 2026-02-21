@@ -100,7 +100,7 @@ cd frontend && python3 -m http.server 8080
 - 在宝塔面板“软件商店”中安装：
   - **Redis** (必需)
   - **Python项目管理器** (建议 2.0+)
-  - **堡塔应用管理器** 或 **Supervisor管理器** (用于守护 Celery 进程)
+  - **Supervisor管理器** (用于守护 Celery 进程)
 
 ### 2. 上传代码
 - 将整个项目文件夹上传到服务器（例如 `/www/wwwroot/vmp_shield`）。
@@ -110,29 +110,33 @@ cd frontend && python3 -m http.server 8080
   - **项目名称**: `vmp_backend`
   - **路径**: 选择 `/www/wwwroot/vmp_shield`
   - **Python版本**: 选择 3.10+
-  - **框架**: `fastapi`
   - **启动文件**: `backend/main.py`
   - **端口**: `8000`
   - **勾选**: “安装依赖” (系统会自动读取 `requirements.txt`)
-- 启动项目。
+- **重点：** 项目添加成功后，在项目列表中点击“路径”，找到该项目的虚拟环境路径。通常是 `/www/wwwroot/vmp_shield/vmp_backend_venv/bin/python`（具体名称请在目录中确认）。
 
 ### 4. 配置 Celery 守护进程 (Supervisor)
+如果您遇到 `No module named celery`，是因为 Supervisor 使用了系统 Python 而不是项目的虚拟环境 Python。
+
 - 打开 **Supervisor管理器**，点击“添加守护进程”：
   - **名称**: `vmp_worker`
   - **启动用户**: `www` 或 `root`
   - **运行目录**: `/www/wwwroot/vmp_shield`
-  - **启动命令**: `python3 -m celery -A backend.celery_worker worker --loglevel=info`
+  - **启动命令**: `[虚拟环境Python路径] -m celery -A backend.celery_worker worker --loglevel=info`
+    - *示例：* `/www/wwwroot/vmp_shield/vmp_backend_venv/bin/python3 -m celery -A backend.celery_worker worker --loglevel=info`
   - **进程数量**: 1
-- 保存并启动，确保状态为“已启动”。
+- 保存并启动。
 
 ### 5. 部署前端
 - 在宝塔面板“网站”中添加一个“静态网站”。
 - 根目录指向 `/www/wwwroot/vmp_shield/frontend`。
-- 确保浏览器可以正常打开 `index.html`。
 
-### 6. 注意事项
-- **端口放行**: 请在宝塔面板的“安全”界面和云服务器后台（如阿里云、腾讯云）放行 `8000` 端口（后端接口）和 `80`/`443` 端口（前端）。
-- **CORS设置**: 默认代码已开启全域名跨域，无需额外配置 Nginx 跨域。
-- **编译器路径**: 确保服务器已安装 `clang`。可以通过宝塔终端运行 `apt install clang` 进行安装。
+### 6. 常见问题排查 (FAQ)
+- **Q: 启动 Celery 提示没有名为 celery 的模块？**
+  - **A:** 请确保在 Supervisor 的“启动命令”中使用的是**项目虚拟环境**下的 Python 路径。不要直接写 `python3`，要写类似 `/www/wwwroot/vmp_shield/xxx_venv/bin/python3` 的全路径。
+- **Q: 编译器找不到 clang？**
+  - **A:** 在宝塔终端执行 `sudo apt install -y clang`。
+- **Q: 任务一直处于 processing 状态？**
+  - **A:** 请检查 Supervisor 中的 `vmp_worker` 是否正常运行。如果已启动但无效，查看 Supervisor 日志确认是否有权限或路径错误。
 
 ---
