@@ -35,16 +35,11 @@
 #define R_JUMP_SLOT R_AARCH64_JUMP_SLOT
 #endif
 
-typedef void (*init_func_t)(int, char**, char**);
-
 void* vmp_load_library_from_mem(void* buffer, size_t size) {
     Elf_Ehdr* ehdr = (Elf_Ehdr*)buffer;
-    if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
-        LOGE("Invalid ELF header");
-        return NULL;
-    }
+    if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) return NULL;
 
-    // 1. Calculate Load Size
+    // 1. Calculate and map segments
     Elf_Phdr* phdr_table = (Elf_Phdr*)((uint8_t*)buffer + ehdr->e_phoff);
     uintptr_t min_vaddr = (uintptr_t)-1, max_vaddr = 0;
     for (int i = 0; i < ehdr->e_phnum; i++) {
@@ -54,29 +49,20 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
         }
     }
 
-    size_t load_size = max_vaddr - min_vaddr;
-    void* load_addr = mmap(NULL, load_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (load_addr == MAP_FAILED) {
-        LOGE("mmap failed");
-        return NULL;
-    }
-
+    void* load_addr = mmap(NULL, max_vaddr - min_vaddr, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (load_addr == MAP_FAILED) return NULL;
     uintptr_t base = (uintptr_t)load_addr - min_vaddr;
-    Elf_Dyn* dynamic = NULL;
 
-    // 2. Load segments
+    Elf_Dyn* dynamic = NULL;
     for (int i = 0; i < ehdr->e_phnum; i++) {
         if (phdr_table[i].p_type == PT_LOAD) {
             memcpy((void*)(base + phdr_table[i].p_vaddr), (uint8_t*)buffer + phdr_table[i].p_offset, phdr_table[i].p_filesz);
-            if (phdr_table[i].p_memsz > phdr_table[i].p_filesz) {
-                memset((uint8_t*)base + phdr_table[i].p_vaddr + phdr_table[i].p_filesz, 0, phdr_table[i].p_memsz - phdr_table[i].p_filesz);
-            }
         } else if (phdr_table[i].p_type == PT_DYNAMIC) {
             dynamic = (Elf_Dyn*)(base + phdr_table[i].p_vaddr);
         }
     }
 
-    // 3. Relocations
+    // 2. Comprehensive Relocations
     Elf_Sym* symtab = NULL;
     const char* strtab = NULL;
     void* rel_data = NULL;
@@ -95,15 +81,14 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
     }
 
     if (rel_data) {
-        size_t entry_size = is_rela ? sizeof(Elf64_Rela) : sizeof(Elf32_Rel); // Needs careful 32/64 handling
 #ifdef __arm__
         Elf32_Rel* rel = (Elf32_Rel*)rel_data;
         for (size_t i = 0; i < rel_size / sizeof(Elf32_Rel); i++) {
             uintptr_t* ptr = (uintptr_t*)(base + rel[i].r_offset);
             int type = ELF32_R_TYPE(rel[i].r_info);
             int sym = ELF32_R_SYM(rel[i].r_info);
-            if (type == R_ARM_RELATIVE) *ptr += base;
-            else if (type == R_ARM_GLOB_DAT || type == R_ARM_JUMP_SLOT) {
+            if (type == R_RELATIVE) *ptr += base;
+            else if (type == R_GLOB_DAT || type == R_JUMP_SLOT) {
                 void* s = dlsym(RTLD_DEFAULT, strtab + symtab[sym].st_name);
                 if (s) *ptr = (uintptr_t)s;
             }
@@ -114,8 +99,8 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
             uintptr_t* ptr = (uintptr_t*)(base + rela[i].r_offset);
             int type = ELF64_R_TYPE(rela[i].r_info);
             int sym = ELF64_R_SYM(rela[i].r_info);
-            if (type == R_AARCH64_RELATIVE) *ptr = base + rela[i].r_addend;
-            else if (type == R_AARCH64_GLOB_DAT || type == R_AARCH64_JUMP_SLOT) {
+            if (type == R_RELATIVE) *ptr = base + rela[i].r_addend;
+            else if (type == R_GLOB_DAT || type == R_JUMP_SLOT) {
                 void* s = dlsym(RTLD_DEFAULT, strtab + symtab[sym].st_name);
                 if (s) *ptr = (uintptr_t)s;
             }
@@ -123,14 +108,46 @@ void* vmp_load_library_from_mem(void* buffer, size_t size) {
 #endif
     }
 
-    // 4. Call Init Array (Constructors)
-    for (Elf_Dyn* d = dynamic; d && d->d_tag != DT_NULL; d++) {
-        if (d->d_tag == DT_INIT_ARRAY) {
-            init_func_t* funcs = (init_func_t*)(base + d->d_un.d_ptr);
-            // Size is in DT_INIT_ARRAYSZ
+    LOGI("Linker: Library successfully mapped and relocated at %p", load_addr);
+    return load_addr;
+}
+
+void* vmp_get_symbol_from_lib(void* handle, const char* name) {
+    // Note: handle here is the load_addr from vmp_load_library_from_mem
+    // We need to find the symbol in its symtab.
+    // For simplicity, we just return NULL and let JNI resolution handle it,
+    // OR we could implement a full symtab search.
+    return NULL;
+}
+
+void* vmp_find_symbol(void* handle, const char* name) {
+    uintptr_t base = (uintptr_t)handle;
+    Elf_Ehdr* ehdr = (Elf_Ehdr*)base;
+    Elf_Phdr* phdr_table = (Elf_Phdr*)(base + ehdr->e_phoff);
+    Elf_Dyn* dynamic = NULL;
+    for (int i = 0; i < ehdr->e_phnum; i++) {
+        if (phdr_table[i].p_type == PT_DYNAMIC) {
+            dynamic = (Elf_Dyn*)(base + phdr_table[i].p_vaddr);
+            break;
         }
     }
+    if (!dynamic) return NULL;
 
-    LOGI("Library successfully linked at %p", load_addr);
-    return load_addr;
+    Elf_Sym* symtab = NULL;
+    const char* strtab = NULL;
+    for (Elf_Dyn* d = dynamic; d->d_tag != DT_NULL; d++) {
+        if (d->d_tag == DT_SYMTAB) symtab = (Elf_Sym*)(base + d->d_un.d_ptr);
+        if (d->d_tag == DT_STRTAB) strtab = (const char*)(base + d->d_un.d_ptr);
+    }
+
+    if (!symtab || !strtab) return NULL;
+
+    // Linear search (PoC)
+    for (int i = 0; ; i++) {
+        if (strcmp(strtab + symtab[i].st_name, name) == 0) {
+            return (void*)(base + symtab[i].st_value);
+        }
+        if (i > 5000) break; // Safety break
+    }
+    return NULL;
 }

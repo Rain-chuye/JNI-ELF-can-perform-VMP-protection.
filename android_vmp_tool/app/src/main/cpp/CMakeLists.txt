@@ -31,3 +31,11 @@ find_library(log-lib log)
 
 target_link_libraries(vmp_engine ${log-lib})
 target_link_libraries(test_lib ${log-lib})
+
+# Loader Stub (This is what will be patched)
+add_library(vmp_loader SHARED
+            loader/loader_stub.cpp
+            runtime/linker.cpp
+            runtime/vm_runtime.cpp
+            runtime/decryptor.cpp)
+target_link_libraries(vmp_loader ${log-lib} dl)
