@@ -10,8 +10,11 @@ target triple = "x86_64-pc-linux-gnu"
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local void @secret_logic() #0 {
+  %args = alloca [1 x ptr]
+  %arg0_ptr = getelementptr inbounds [1 x ptr], ptr %args, i64 0, i64 0
+  store ptr @.str, ptr %arg0_ptr
   %bytecode_ptr = getelementptr inbounds [2 x i8], ptr @vm_code_secret_logic, i64 0, i64 0
-  call void @vm_interpreter(ptr %bytecode_ptr, ptr null)
+  call void @vm_interpreter(ptr %bytecode_ptr, ptr %args)
   ret void
 }
 
@@ -39,14 +42,13 @@ attributes #1 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !4 = !{i32 7, !"frame-pointer", i32 2}
 !5 = !{!"Ubuntu clang version 18.1.3 (1ubuntu1)"}
 
-@vm_code_secret_logic = private constant [2 x i8] c"\76\75", align 1
+@vm_code_secret_logic = private constant [2 x i8] c"\74\75", align 1
 
 declare void @decrypt_data(ptr, i64, i8)
 declare void @vm_interpreter(ptr, ptr)
 
 define void @__vmp_init_strings() {
 entry:
-  call void @decrypt_data(ptr @.str, i64 31, i8 66)
   ret void
 }
 

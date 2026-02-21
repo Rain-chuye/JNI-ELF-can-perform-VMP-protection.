@@ -28,7 +28,7 @@ def test_full_flow():
             output = proc.stdout
             print(f"--- Output ---\n{output}--------------")
 
-            if "[VM] Virtualized execution of sensitive logic..." in output:
+            if "[VM] Decrypting and printing sensitive data:" in output:
                 print("[SUCCESS] VMP logic executed correctly!")
             else:
                 print("[FAILURE] VMP logic not found in output.")
