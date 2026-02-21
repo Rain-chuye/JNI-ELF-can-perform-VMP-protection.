@@ -89,3 +89,50 @@ cd frontend && python3 -m http.server 8080
 
 ---
 *本系统由 Jules 开发，旨在为商业软件提供坚实的代码盾牌。*
+
+---
+
+## 宝塔面板 (BT Panel) 安装教程
+
+如果您希望在宝塔面板上部署此系统，请参考以下步骤：
+
+### 1. 环境准备
+- 在宝塔面板“软件商店”中安装：
+  - **Redis** (必需)
+  - **Python项目管理器** (建议 2.0+)
+  - **堡塔应用管理器** 或 **Supervisor管理器** (用于守护 Celery 进程)
+
+### 2. 上传代码
+- 将整个项目文件夹上传到服务器（例如 `/www/wwwroot/vmp_shield`）。
+
+### 3. 配置 Python 项目 (FastAPI)
+- 打开 **Python项目管理器**，点击“添加项目”：
+  - **项目名称**: `vmp_backend`
+  - **路径**: 选择 `/www/wwwroot/vmp_shield`
+  - **Python版本**: 选择 3.10+
+  - **框架**: `fastapi`
+  - **启动文件**: `backend/main.py`
+  - **端口**: `8000`
+  - **勾选**: “安装依赖” (系统会自动读取 `requirements.txt`)
+- 启动项目。
+
+### 4. 配置 Celery 守护进程 (Supervisor)
+- 打开 **Supervisor管理器**，点击“添加守护进程”：
+  - **名称**: `vmp_worker`
+  - **启动用户**: `www` 或 `root`
+  - **运行目录**: `/www/wwwroot/vmp_shield`
+  - **启动命令**: `python3 -m celery -A backend.celery_worker worker --loglevel=info`
+  - **进程数量**: 1
+- 保存并启动，确保状态为“已启动”。
+
+### 5. 部署前端
+- 在宝塔面板“网站”中添加一个“静态网站”。
+- 根目录指向 `/www/wwwroot/vmp_shield/frontend`。
+- 确保浏览器可以正常打开 `index.html`。
+
+### 6. 注意事项
+- **端口放行**: 请在宝塔面板的“安全”界面和云服务器后台（如阿里云、腾讯云）放行 `8000` 端口（后端接口）和 `80`/`443` 端口（前端）。
+- **CORS设置**: 默认代码已开启全域名跨域，无需额外配置 Nginx 跨域。
+- **编译器路径**: 确保服务器已安装 `clang`。可以通过宝塔终端运行 `apt install clang` 进行安装。
+
+---
