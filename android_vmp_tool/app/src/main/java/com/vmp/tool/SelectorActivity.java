@@ -1,6 +1,7 @@
 package com.vmp.tool;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
@@ -8,11 +9,15 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.ArrayAdapter;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.google.android.material.checkbox.MaterialCheckBox;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -29,10 +34,11 @@ public class SelectorActivity extends Activity {
     private String mode;
     private Uri selectedUri;
     private ListView lvFunctions;
+    private FunctionAdapter adapter;
     private List<String> symbols = new ArrayList<>();
-    private List<Boolean> checked = new ArrayList<>();
+    private List<Boolean> checkedState = new ArrayList<>();
     private Handler handler = new Handler(Looper.getMainLooper());
-    private TextView tvLog;
+    private MaterialCheckBox cbSelectAll;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,8 +49,12 @@ public class SelectorActivity extends Activity {
         ((TextView)findViewById(R.id.tv_title)).setText(mode.toUpperCase() + " Analyzer");
 
         lvFunctions = findViewById(R.id.lv_functions);
+        cbSelectAll = findViewById(R.id.cb_select_all);
         Button btnSelect = findViewById(R.id.btn_select_file);
         Button btnExecute = findViewById(R.id.btn_execute);
+
+        adapter = new FunctionAdapter(this);
+        lvFunctions.setAdapter(adapter);
 
         btnSelect.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -52,11 +62,23 @@ public class SelectorActivity extends Activity {
             startActivityForResult(intent, 1);
         });
 
+        cbSelectAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            for (int i = 0; i < checkedState.size(); i++) {
+                checkedState.set(i, isChecked);
+            }
+            adapter.notifyDataSetChanged();
+        });
+
+        lvFunctions.setOnItemClickListener((parent, view, position, id) -> {
+            checkedState.set(position, !checkedState.get(position));
+            adapter.notifyDataSetChanged();
+        });
+
         btnExecute.setOnClickListener(v -> {
             if (selectedUri != null) {
                 List<Integer> selectedIndices = new ArrayList<>();
-                for (int i = 0; i < checked.size(); i++) {
-                    if (checked.get(i)) selectedIndices.add(i);
+                for (int i = 0; i < checkedState.size(); i++) {
+                    if (checkedState.get(i)) selectedIndices.add(i);
                 }
                 int[] indices = new int[selectedIndices.size()];
                 for (int i = 0; i < indices.length; i++) indices[i] = selectedIndices.get(i);
@@ -66,10 +88,33 @@ public class SelectorActivity extends Activity {
         });
     }
 
-    public void onLog(final String message) {
-        handler.post(() -> {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-        });
+    private class FunctionAdapter extends BaseAdapter {
+        private LayoutInflater inflater;
+
+        public FunctionAdapter(Context context) {
+            inflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() { return symbols.size(); }
+        @Override
+        public Object getItem(int position) { return symbols.get(position); }
+        @Override
+        public long getItemId(int position) { return position; }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            if (convertView == null) {
+                convertView = inflater.inflate(R.layout.item_function, parent, false);
+            }
+            TextView tvName = convertView.findViewById(R.id.tv_name);
+            MaterialCheckBox cb = convertView.findViewById(R.id.cb_item);
+
+            tvName.setText(symbols.get(position));
+            cb.setChecked(checkedState.get(position));
+
+            return convertView;
+        }
     }
 
     @Override
@@ -94,18 +139,15 @@ public class SelectorActivity extends Activity {
 
             String[] syms = getElfSymbols(temp.getAbsolutePath());
             symbols.clear();
-            checked.clear();
+            checkedState.clear();
             if (syms != null) {
                 for (String s : syms) {
                     symbols.add(s);
-                    checked.add(false);
+                    checkedState.add(false);
                 }
             }
-
-            ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, R.layout.item_function, R.id.cb_func, symbols);
-            lvFunctions.setAdapter(adapter);
-            lvFunctions.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
-            lvFunctions.setOnItemClickListener((parent, view, position, id) -> checked.set(position, !checked.get(position)));
+            cbSelectAll.setChecked(false);
+            adapter.notifyDataSetChanged();
 
         } catch (Exception e) {
             Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();

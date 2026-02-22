@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_dark"
+    android:background="@color/background"
     android:padding="16dp">
 
     <TextView
@@ -11,25 +11,42 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Symbol Analyzer"
-        android:textColor="@color/text_main"
-        android:textSize="20sp"
+        android:textColor="@color/onBackground"
+        android:textSize="24sp"
         android:textStyle="bold"/>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_select_file"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Open Target"
         android:layout_marginTop="16dp"
-        android:backgroundTint="@color/brand_primary"/>
+        style="@style/Widget.Material3.Button"/>
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Functions for VMP"
-        android:textColor="@color/brand_primary"
-        android:textSize="12sp"
-        android:layout_marginTop="16dp"/>
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="16dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Select Functions for VMP"
+            android:textColor="@color/primary"
+            android:textSize="14sp"
+            android:textStyle="bold"/>
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/cb_select_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Select All"
+            android:textColor="@color/onBackground"
+            android:textSize="12sp"/>
+    </LinearLayout>
 
     <ListView
         android:id="@+id/lv_functions"
@@ -37,17 +54,17 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="8dp"
-        android:background="#000000"
-        android:padding="4dp"/>
+        android:divider="@color/outline"
+        android:dividerHeight="0.5dp"/>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_execute"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="64dp"
         android:layout_marginTop="16dp"
         android:text="GENERATE SHIELDED BINARY"
-        android:backgroundTint="@color/accent_gold"
-        android:textColor="@color/bg_dark"
-        android:textStyle="bold"/>
+        android:textSize="16sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.TonalButton"/>
 
 </LinearLayout>
