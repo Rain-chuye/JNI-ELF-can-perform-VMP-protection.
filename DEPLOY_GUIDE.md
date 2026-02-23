@@ -92,3 +92,15 @@ strace ./protected_binary
 
 ---
 *VMP Shield Pro - 为您的代码安全保驾护航*
+
+## 6. 宝塔面板 (BT Panel) 一键部署
+
+如果您使用的是宝塔面板，可以使用我们提供的专用部署脚本：
+
+```bash
+# 下载代码后进入项目目录
+chmod +x bt_install.sh
+./bt_install.sh
+```
+
+脚本运行完成后，请参照终端输出的提示，在宝塔面板的【Python项目管理器】和【Supervisor管理器】中完成最后的点击配置即可。
