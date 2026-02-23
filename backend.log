@@ -1,32 +1,16 @@
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [12071]
-INFO:     Started server process [16191]
+INFO:     Finished server process [16191]
+INFO:     Started server process [42481]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:40322 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:44906 - "GET /status/b83e7bef-09d7-4d55-b6ee-1c34a7ed8785 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52602 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49724 - "GET /status/ab4e7801-683a-4dca-b20a-852dd196da1f HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57284 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36048 - "GET /status/781efda6-8c61-477e-b6a0-d1a5657512b3 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52976 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52976 - "GET /status/b315c4f3-3f35-4d01-becd-ecb16323a0d5 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54856 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54860 - "GET /status/d455e473-40df-4f4f-9a72-982f23103a89 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54876 - "GET /status/d455e473-40df-4f4f-9a72-982f23103a89 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54890 - "GET /download/d455e473-40df-4f4f-9a72-982f23103a89 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38516 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38530 - "GET /status/6bd05ffe-18ca-4851-83c8-c1bd39accce6 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38546 - "GET /status/6bd05ffe-18ca-4851-83c8-c1bd39accce6 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38558 - "GET /download/6bd05ffe-18ca-4851-83c8-c1bd39accce6 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46918 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46934 - "GET /status/4bfdb923-629f-48f2-9fc0-c9355e587952 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46950 - "GET /status/4bfdb923-629f-48f2-9fc0-c9355e587952 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46958 - "GET /download/4bfdb923-629f-48f2-9fc0-c9355e587952 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37310 - "POST /upload HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37314 - "GET /status/799fd392-693a-4daa-bcad-9ed2d0b1d0d9 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54606 - "GET /status/799fd392-693a-4daa-bcad-9ed2d0b1d0d9 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54620 - "GET /download/799fd392-693a-4daa-bcad-9ed2d0b1d0d9 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51522 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58364 - "GET /status/33bbda05-8cbd-4680-8e38-c3913e4ed9fa HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34996 - "GET /download/33bbda05-8cbd-4680-8e38-c3913e4ed9fa HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43978 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50218 - "GET /status/ee082557-91d8-4972-88d8-ab74fac0e559 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60568 - "GET /download/ee082557-91d8-4972-88d8-ab74fac0e559 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33382 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33382 - "GET /status/de713e76-3ff6-4a96-a557-4281da3f399b HTTP/1.1" 200 OK

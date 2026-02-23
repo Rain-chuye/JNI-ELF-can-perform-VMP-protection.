@@ -10,8 +10,9 @@ def ir_escape(data):
     return "".join(f"\\{b:02x}" for b in data)
 
 class IRProtector:
-    def __init__(self, content):
+    def __init__(self, content, options=None):
         self.content = content
+        self.options = options or {}
         self.strings = []
 
     def rename_registers(self, body):
@@ -20,11 +21,10 @@ class IRProtector:
         return body
 
     def protect_strings(self):
+        if not self.options.get("strings", True): return
         pattern = r'(@\.str[0-9.]*|@__const\.[^ ]+) = private unnamed_addr constant \[(\d+) x i8\] c"(.*?)", align \d+'
         def replacer(match):
-            var_name = match.group(1)
-            length = int(match.group(2))
-            raw_content = match.group(3)
+            var_name, length, raw_content = match.groups()
             processed_bytes = bytearray()
             i = 0
             while i < len(raw_content):
@@ -44,7 +44,29 @@ class IRProtector:
             return f'{var_name} = private unnamed_addr global [{len(processed_bytes)} x i8] c"{ir_escape(encrypted)}", align 1'
         self.content = re.sub(pattern, replacer, self.content)
 
+    def instruction_substitution(self, body):
+        if not self.options.get("sub", True): return body
+        lines = body.split('\n')
+        new_lines = []
+        for line in lines:
+            # Substitution for add: a + b -> (a ^ b) + 2*(a & b)
+            # This is hard to do purely with regex in LLVM IR without breaking types.
+            # Let's do a simpler one: a + b -> a - (-b)
+            # Actually, let's do: a ^ b -> (a & ~b) | (~a & b)
+            # For this PoC, we will focus on 'add' and 'xor'
+            m = re.search(r'(%[a-zA-Z0-9._]+) = add (i\d+) (.*?), (.*)', line)
+            if m:
+                res, ty, op1, op2 = m.groups()
+                tmp1 = f"{res}_sub1"
+                tmp2 = f"{res}_sub2"
+                new_lines.append(f"  {tmp1} = sub {ty} 0, {op2}")
+                new_lines.append(f"  {res} = sub {ty} {op1}, {tmp1}")
+                continue
+            new_lines.append(line)
+        return "\n".join(new_lines)
+
     def flatten_cfg(self):
+        if not self.options.get("fla", True): return
         output = []
         pos = 0
         pattern = re.compile(r'^define (.*?) @(.*?)\((.*?)\) (.*?) \{(.*?)\n\}', re.DOTALL | re.MULTILINE)
@@ -53,10 +75,12 @@ class IRProtector:
             prefix, func_name, args, attrs, body = match.groups()
             args = self.rename_registers(args)
             body = self.rename_registers(body)
+            body = self.instruction_substitution(body)
+
             if "llvm." in func_name:
                 output.append(match.group(0))
-                pos = match.end()
-                continue
+                pos = match.end(); continue
+
             blocks = []
             current_block_label = "entry"
             current_block_lines = []
@@ -68,14 +92,17 @@ class IRProtector:
                     current_block_label, current_block_lines = label_match.group(1), []
                 elif lstrip: current_block_lines.append(line)
             if current_block_lines: blocks.append((current_block_label, current_block_lines))
+
             if len(blocks) < 2:
                 output.append(f'define {prefix} @{func_name}({args}) {attrs} {{\n' + body + "\n}")
                 pos = match.end(); continue
+
             block_ids = {name: random.randint(10000, 999999) for name, _ in blocks}
             new_body, allocas, rest = [], [], []
             for line in blocks[0][1]:
                 if "alloca" in line: allocas.append(line)
                 else: rest.append(line)
+
             new_body.extend(allocas)
             new_body.append(f"  %v_state = alloca i32, align 4")
             new_body.append(f"  store i32 {block_ids[blocks[0][0]]}, ptr %v_state, align 4")
@@ -131,5 +158,19 @@ entry:
         with open(output_file, 'w') as f: f.write(self.content)
 
 if __name__ == "__main__":
-    with open(sys.argv[1], 'r') as f: content = f.read()
-    IRProtector(content).process(sys.argv[2])
+    if len(sys.argv) < 3:
+        print("Usage: protect.py input.ll output.ll [options_json]")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+    options = {}
+    if len(sys.argv) > 3:
+        import json
+        try:
+            options = json.loads(sys.argv[3])
+        except:
+            pass
+
+    with open(input_file, 'r') as f: content = f.read()
+    IRProtector(content, options).process(output_file)

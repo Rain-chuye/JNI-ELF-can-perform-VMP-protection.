@@ -1,10 +1,10 @@
 
  -------------- celery@devbox v5.6.2 (recovery)
 --- ***** -----
--- ******* ---- Linux-6.8.0-x86_64-with-glibc2.39 2026-02-23 05:51:59
+-- ******* ---- Linux-6.8.0-x86_64-with-glibc2.39 2026-02-23 06:16:37
 - *** --- * ---
 - ** ---------- [config]
-- ** ---------- .> app:         tasks:0x7fc32428a150
+- ** ---------- .> app:         tasks:0x7f19d3020d40
 - ** ---------- .> transport:   redis://localhost:6379/0
 - ** ---------- .> results:     disabled://
 - *** --- * --- .> concurrency: 4 (prefork)
@@ -17,11 +17,14 @@
 [tasks]
   . celery_worker.process_binary
 
-[2026-02-23 05:51:59,615: INFO/MainProcess] Connected to redis://localhost:6379/0
-[2026-02-23 05:51:59,623: INFO/MainProcess] mingle: searching for neighbors
-[2026-02-23 05:52:00,636: INFO/MainProcess] mingle: all alone
-[2026-02-23 05:52:00,652: INFO/MainProcess] celery@devbox ready.
-[2026-02-23 05:52:00,996: INFO/MainProcess] Task celery_worker.process_binary[f6fa69fd-3211-4454-8f6b-e09eb013e126] received
-[2026-02-23 05:52:01,244: INFO/ForkPoolWorker-1] Task celery_worker.process_binary[f6fa69fd-3211-4454-8f6b-e09eb013e126] succeeded in 0.24630855899999915s: {'status': 'success', 'task_id': '4bfdb923-629f-48f2-9fc0-c9355e587952'}
-[2026-02-23 05:52:16,482: INFO/MainProcess] Task celery_worker.process_binary[0ffa657a-a6ec-4cdb-89c4-62cb31344fee] received
-[2026-02-23 05:52:16,714: INFO/ForkPoolWorker-1] Task celery_worker.process_binary[0ffa657a-a6ec-4cdb-89c4-62cb31344fee] succeeded in 0.2317877820000831s: {'status': 'success', 'task_id': '799fd392-693a-4daa-bcad-9ed2d0b1d0d9'}
+[2026-02-23 06:16:38,901: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2026-02-23 06:16:38,907: INFO/MainProcess] mingle: searching for neighbors
+[2026-02-23 06:16:39,923: INFO/MainProcess] mingle: all alone
+[2026-02-23 06:16:39,946: INFO/MainProcess] celery@devbox ready.
+[2026-02-23 06:16:40,343: INFO/MainProcess] Task celery_worker.process_binary[6ff9cfbf-ad1b-49d3-8052-d232e21ee96a] received
+[+] Protected /app/uploads/33bbda05-8cbd-4680-8e38-c3913e4ed9fa.so
+[2026-02-23 06:16:41,156: INFO/ForkPoolWorker-1] Task celery_worker.process_binary[6ff9cfbf-ad1b-49d3-8052-d232e21ee96a] succeeded in 0.810284939000212s: {'status': 'success', 'task_id': '33bbda05-8cbd-4680-8e38-c3913e4ed9fa'}
+[2026-02-23 06:17:13,540: INFO/MainProcess] Task celery_worker.process_binary[1631e5d7-420e-4497-85a0-d3a70cb2c363] received
+[2026-02-23 06:17:14,092: INFO/ForkPoolWorker-1] Task celery_worker.process_binary[1631e5d7-420e-4497-85a0-d3a70cb2c363] succeeded in 0.5513344760001928s: {'status': 'success', 'task_id': 'ee082557-91d8-4972-88d8-ab74fac0e559'}
+[2026-02-23 06:18:29,569: INFO/MainProcess] Task celery_worker.process_binary[a12cb318-db14-41bc-8700-ef5e79477b82] received
+[2026-02-23 06:18:29,943: INFO/ForkPoolWorker-1] Task celery_worker.process_binary[a12cb318-db14-41bc-8700-ef5e79477b82] succeeded in 0.3726976829998421s: {'status': 'success', 'task_id': 'de713e76-3ff6-4a96-a557-4281da3f399b'}
