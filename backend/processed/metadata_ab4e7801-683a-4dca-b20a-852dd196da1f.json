@@ -1,0 +1,1 @@
+{"task_id": "ab4e7801-683a-4dca-b20a-852dd196da1f", "original_filename": "dummy.so", "security_score": 75, "protections_applied": ["CFG Flattening", "String Encryption", "Anti-Debug", "Section Encryption"], "arch": "x86_64", "complexity_increase": "450%"}

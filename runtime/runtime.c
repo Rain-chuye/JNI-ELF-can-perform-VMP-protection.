@@ -1,49 +1,55 @@
 #include "runtime.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/ptrace.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/mman.h>
+#include <ctype.h>
+#include <signal.h>
 
 void decrypt_data(char* data, size_t len, char key) {
+    if (!data) return;
     for (size_t i = 0; i < len; ++i) {
         data[i] ^= key;
     }
 }
 
-#define OP_PRINT_LOGIC 0x01
-#define OP_EXIT        0x02
-#define OP_PRINT_STR   0x03
-
-void vm_interpreter(const unsigned char* bytecode, void* args[]) {
-    unsigned char code[2];
-    code[0] = bytecode[0] ^ 0x77;
-    code[1] = bytecode[1] ^ 0x77;
-
-    int pc = 0;
-    while (1) {
-        unsigned char opcode = code[pc++];
-        switch (opcode) {
-            case OP_PRINT_LOGIC:
-                printf("[VM] Generic logic execution...\n");
-                break;
-            case OP_PRINT_STR: {
-                char* encrypted_str = (char*)((void**)args)[0];
-                // In a real VMP, the VM would handle the data in its encrypted state
-                // Here we decrypt it to prove data flow and "normal execution"
-                // The secret string was encrypted with key 0x42 (66)
-                size_t len = strlen(encrypted_str); // Risky if null is encrypted, but for PoC...
-                // Actually, let's just decrypt a fixed amount or use the fact that it's XOR
-                printf("[VM] Decrypting and printing sensitive data: ");
-                for(int i=0; i<30; i++) {
-                    char c = encrypted_str[i] ^ 0x42;
-                    if (c == 0) break;
-                    putchar(c);
-                }
-                printf("\n");
-                break;
-            }
-            case OP_EXIT:
-                return;
-            default:
-                return;
+// Simple CRC32 for integrity check
+uint32_t calculate_crc32(const char* data, size_t len) {
+    uint32_t crc = 0xFFFFFFFF;
+    for (size_t i = 0; i < len; i++) {
+        crc ^= (uint8_t)data[i];
+        for (int j = 0; j < 8; j++) {
+            crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
         }
     }
+    return ~crc;
+}
+
+void anti_debug_init(void) {
+#ifdef __linux__
+    // Signal-based anti-debug: Trap if being debugged
+    if (ptrace(PTRACE_TRACEME, 0, 1, 0) == 0) {
+        ptrace(PTRACE_DETACH, 0, 1, 0);
+    } else if (errno == EPERM) {
+        // Someone else is already tracing us
+        exit(1);
+    }
+
+    // Check for common debuggers in memory/proc
+    if (access("/usr/bin/gdb", F_OK) == 0) {
+        // Just a hint, not an exit
+    }
+#endif
+}
+
+void vm_interpreter(const unsigned char* bytecode, void* args[]) {
+    // Advanced VM dispatcher could go here
+}
+
+__attribute__((constructor))
+void vmp_init() {
+    anti_debug_init();
 }

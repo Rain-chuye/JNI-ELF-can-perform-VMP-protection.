@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import uuid
 import os
+import json
 from celery_worker import process_binary
 
 app = FastAPI()
@@ -14,8 +15,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-PROCESSED_DIR = "processed"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")
+PROCESSED_DIR = os.path.join(BASE_DIR, "processed")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
@@ -23,7 +25,7 @@ os.makedirs(PROCESSED_DIR, exist_ok=True)
 async def upload_file(file: UploadFile = File(...), options: str = Form("{}")):
     task_id = str(uuid.uuid4())
     file_ext = os.path.splitext(file.filename)[1]
-    file_path = os.path.join(UPLOAD_DIR, f"{task_id}{file_ext}")
+    file_path = os.path.abspath(os.path.join(UPLOAD_DIR, f"{task_id}{file_ext}"))
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
@@ -34,8 +36,16 @@ async def upload_file(file: UploadFile = File(...), options: str = Form("{}")):
 @app.get("/status/{task_id}")
 async def get_status(task_id: str):
     processed_path = os.path.join(PROCESSED_DIR, f"protected_{task_id}")
+    metadata_path = os.path.join(PROCESSED_DIR, f"metadata_{task_id}.json")
+
     if os.path.exists(processed_path):
-        return {"status": "completed", "download_url": f"/download/{task_id}"}
+        metadata = {}
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+        return {"status": "completed", "download_url": f"/download/{task_id}", "metadata": metadata}
+
+    # Check if failed (we can check celery result but for now just check log)
     return {"status": "processing"}
 
 @app.get("/download/{task_id}")

@@ -1,0 +1,1 @@
+{"task_id": "d455e473-40df-4f4f-9a72-982f23103a89", "original_filename": "complex_test.c", "security_score": 92, "protections_applied": ["CFG Flattening", "String Encryption", "Anti-Debug", "Section Encryption"], "arch": "x86_64", "complexity_increase": "450%"}

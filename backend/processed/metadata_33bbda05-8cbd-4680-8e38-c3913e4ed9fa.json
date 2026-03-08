@@ -1,0 +1,1 @@
+{"task_id": "33bbda05-8cbd-4680-8e38-c3913e4ed9fa", "original_filename": "jni_mock.so", "security_score": 85, "protections_applied": ["jni_hard", "sym_obf", "sec_enc"], "arch": "x86_64"}

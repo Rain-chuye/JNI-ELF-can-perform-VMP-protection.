@@ -3,33 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Binary Protection Dashboard</title>
+    <title>VMP Shield Pro | Enterprise Hardening</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .gradient-bg { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
+        .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-slate-50 min-h-screen font-sans">
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect } = React;
 
         function App() {
             const [file, setFile] = useState(null);
+            const [arch, setArch] = useState('x86_64');
+            const [options, setOptions] = useState({
+                fla: true,
+                sub: true,
+                strings: true,
+                anti_debug: true,
+                sym_obf: true,
+                sec_enc: true,
+                jni_hard: true
+            });
             const [taskId, setTaskId] = useState(null);
             const [status, setStatus] = useState(null);
+            const [metadata, setMetadata] = useState(null);
             const [downloadUrl, setDownloadUrl] = useState(null);
 
-            const handleUpload = async () => {
-                if (!file) return alert("Please select a file first.");
+            const toggleOption = (opt) => setOptions({...options, [opt]: !options[opt]});
 
+            const handleUpload = async () => {
+                if (!file) return alert("Please select a file.");
                 setStatus('uploading');
                 const formData = new FormData();
                 formData.append('file', file);
-                formData.append('options', JSON.stringify({ vmp: true, strings: true }));
+                formData.append('options', JSON.stringify({ ...options, arch }));
 
                 try {
                     const res = await fetch('http://localhost:8000/upload', {
@@ -40,117 +54,108 @@
                     setTaskId(data.task_id);
                     setStatus('processing');
                 } catch (e) {
-                    alert("Upload failed. Make sure the backend is running.");
+                    alert("Connection error.");
                     setStatus(null);
                 }
             };
 
             useEffect(() => {
-                if (taskId) {
+                if (taskId && status === 'processing') {
                     const interval = setInterval(async () => {
-                        try {
-                            const res = await fetch(`http://localhost:8000/status/${taskId}`);
-                            const data = await res.json();
-                            if (data.status === 'completed') {
-                                setStatus('completed');
-                                setDownloadUrl(`http://localhost:8000${data.download_url}`);
-                                clearInterval(interval);
-                            }
-                        } catch (e) {
-                            console.error("Status check failed", e);
+                        const res = await fetch(`http://localhost:8000/status/${taskId}`);
+                        const data = await res.json();
+                        if (data.status === 'completed') {
+                            setStatus('completed');
+                            setDownloadUrl(`http://localhost:8000${data.download_url}`);
+                            setMetadata(data.metadata);
+                            clearInterval(interval);
                         }
                     }, 2000);
                     return () => clearInterval(interval);
                 }
-            }, [taskId]);
+            }, [taskId, status]);
 
             return (
                 <div class="min-h-screen flex flex-col">
-                    <header class="gradient-bg text-white p-6 shadow-lg">
-                        <div class="container mx-auto">
-                            <h1 class="text-3xl font-extrabold tracking-tight">VMP Shield Pro</h1>
-                            <p class="text-blue-100 mt-1">Enterprise Binary & JNI Protection System</p>
+                    <header class="gradient-bg text-white p-6 shadow-xl">
+                        <div class="container mx-auto flex justify-between items-center">
+                            <h1 class="text-3xl font-black tracking-tighter flex items-center">
+                                <i class="fas fa-shield-halved mr-3 text-blue-400"></i> VMP SHIELD ENTERPRISE
+                            </h1>
+                            <span class="bg-blue-600 px-4 py-2 rounded-full text-xs font-bold">V2.5 PREMIUM</span>
                         </div>
                     </header>
 
-                    <main class="flex-grow container mx-auto p-8">
-                        <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100">
-                            <h2 class="text-xl font-semibold mb-6 text-gray-800">Protect Your Application</h2>
+                    <main class="flex-grow container mx-auto p-8 max-w-6xl">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div class="lg:col-span-1 space-y-6">
+                                <div class="glass-card p-8 rounded-2xl shadow-sm border border-slate-200">
+                                    <h2 class="text-xl font-bold mb-6 text-slate-800 underline decoration-blue-500">Protection Config</h2>
 
-                            <div class="mb-6">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Upload Source Code (C/C++)</label>
-                                <div class="flex items-center justify-center w-full">
-                                    <label class="flex flex-col w-full h-32 border-4 border-dashed border-gray-200 hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer rounded-lg">
-                                        <div class="flex flex-col items-center justify-center pt-7">
-                                            <p class="text-sm text-gray-400">Select file to protect</p>
-                                            {file && <p class="text-blue-600 font-medium mt-2">{file.name}</p>}
-                                        </div>
-                                        <input type="file" class="hidden" onChange={(e) => setFile(e.target.files[0])} />
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="space-y-4 mb-8">
-                                <div class="flex items-center">
-                                    <input type="checkbox" checked readOnly class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
-                                    <label class="ml-2 text-gray-700">String Encryption (Hide sensitive constants)</label>
-                                </div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" checked readOnly class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
-                                    <label class="ml-2 text-gray-700">Function Virtualization (VMP)</label>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleUpload}
-                                disabled={status === 'processing' || status === 'uploading'}
-                                class={`w-full py-3 rounded-lg font-bold text-white transition-all ${status === 'processing' ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl active:scale-95'}`}
-                            >
-                                {status === 'processing' ? 'Processing...' : 'Upload & Protect'}
-                            </button>
-
-                            {taskId && (
-                                <div class="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-gray-500">Task ID: {taskId.substring(0,8)}...</span>
-                                        <span class={`px-3 py-1 rounded-full text-xs font-bold uppercase ${status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                            {status}
-                                        </span>
+                                    <div class="space-y-4 mb-8">
+                                        {[
+                                            {id: 'fla', label: 'CFG Flattening'},
+                                            {id: 'sub', label: 'Instr Substitution'},
+                                            {id: 'strings', label: 'String Encryption'},
+                                            {id: 'anti_debug', label: 'Anti-Debug/Attach'},
+                                            {id: 'sym_obf', label: 'Symbol Obfuscation'},
+                                            {id: 'sec_enc', label: 'Section Encryption'},
+                                            {id: 'jni_hard', label: 'JNI Hardening'}
+                                        ].map(opt => (
+                                            <div key={opt.id} class="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
+                                                <span class="text-sm font-medium text-slate-600">{opt.label}</span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={options[opt.id]}
+                                                    onChange={() => toggleOption(opt.id)}
+                                                    class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
 
-                                    {status === 'completed' && (
-                                        <div class="mt-4">
-                                            <a
-                                                href={downloadUrl}
-                                                class="block w-full text-center py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition-colors"
-                                            >
-                                                Download Protected Binary
-                                            </a>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                                    <div class="mb-6">
+                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Target Arch</label>
+                                        <select value={arch} onChange={(e) => setArch(e.target.value)} class="w-full p-3 bg-slate-100 rounded-xl font-bold">
+                                            <option value="x86_64">Linux x64</option>
+                                            <option value="aarch64">Android ARM64</option>
+                                            <option value="arm">Android ARM32</option>
+                                        </select>
+                                    </div>
 
-                        <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="p-6 bg-white rounded-lg shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 mb-2">Anti-Static Analysis</h3>
-                                <p class="text-sm text-gray-600">Encrypts all constant strings to prevent leakage of API keys, URLs, and sensitive metadata.</p>
+                                    <div class="mb-8">
+                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload File</label>
+                                        <input type="file" onChange={(e) => setFile(e.target.files[0])} class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                                    </div>
+
+                                    <button onClick={handleUpload} class="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg hover:bg-blue-700 transition-all">
+                                        {status === 'processing' ? 'PROCESSING...' : 'START PROTECTION'}
+                                    </button>
+                                </div>
                             </div>
-                            <div class="p-6 bg-white rounded-lg shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 mb-2">Instruction VMP</h3>
-                                <p class="text-sm text-gray-600">Translates native code to custom bytecode. Irreversible for standard decompilers like IDA or Ghidra.</p>
-                            </div>
-                            <div class="p-6 bg-white rounded-lg shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 mb-2">JNI Security</h3>
-                                <p class="text-sm text-gray-600">Specifically designed for Android NDK projects. Protects your .so files from tampering.</p>
+
+                            <div class="lg:col-span-2">
+                                {status === 'completed' ? (
+                                    <div class="glass-card p-8 rounded-2xl shadow-sm border border-slate-200">
+                                        <h2 class="text-2xl font-black mb-4">Hardening Complete</h2>
+                                        <div class="bg-green-50 border border-green-200 p-6 rounded-xl mb-6">
+                                            <p class="text-green-700 font-bold flex items-center">
+                                                <i class="fas fa-check-circle mr-2"></i> Your file has been successfully protected.
+                                            </p>
+                                        </div>
+                                        <a href={downloadUrl} class="block w-full text-center py-4 bg-green-600 text-white font-black rounded-2xl shadow-lg hover:bg-green-700 transition-all">
+                                            DOWNLOAD PROTECTED FILE
+                                        </a>
+                                    </div>
+                                ) : (
+                                    <div class="flex flex-col items-center justify-center h-full min-h-[400px] text-slate-300">
+                                        <i class="fas fa-shield-virus text-9xl mb-6 opacity-10"></i>
+                                        <p class="text-xl font-bold">Configure and upload to begin hardening</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </main>
-
-                    <footer class="p-6 text-center text-gray-400 text-sm">
-                        &copy; 2025 VMP Shield Pro. All rights reserved.
-                    </footer>
                 </div>
             );
         }
